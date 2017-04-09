@@ -1,6 +1,5 @@
 package ua.nure.kaplun.sockets;
 import java.io.*;
-import java.util.Arrays;
 
 /**
  * Created by Anton on 23.02.2017.
@@ -45,7 +44,7 @@ public class ReadTcpSocketThread extends Thread{
                                 receiveTextMessage(in, bytesToRead, receivedMessage, printedSenderName);
                                 break;
                             case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT :
-                                receiveBinaryFile(in, bytesToRead, receivedMessage, printedSenderName, receivedMessage.getFileName());
+                                FileSender.receiveBinaryFile(in, bytesToRead, receivedMessage, printedSenderName, receivedMessage.getFileName(), "ReceivedFiles_" + client.getClientName());
                                 break;
                             default:
                         }
@@ -117,32 +116,4 @@ public class ReadTcpSocketThread extends Thread{
         }
     }
 
-    private void receiveBinaryFile(InputStream in, int bytesToRead, Message firstChunkMessage, String printedSenderName, String fileName){
-        try {
-            File dir = new File("ReceivedFiles_" + client.getClientName());
-            dir.mkdir();
-            File receivedFile = new File(dir + "\\" + fileName);
-            FileOutputStream fileOut = new FileOutputStream(receivedFile);
-
-            fileOut.write(firstChunkMessage.getMessageContent());
-            while(bytesToRead >= Configuration.CHUNKS_SIZE){
-                byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
-                in.read(receivedChunk);
-                fileOut.write(receivedChunk);
-                bytesToRead-=Configuration.CHUNKS_SIZE;
-            }
-            if(bytesToRead!=0){
-                byte[] finalChunk = new byte[bytesToRead];
-                in.read(finalChunk);
-                fileOut.write(finalChunk);
-            }
-            fileOut.close();
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        catch (IOException e){
-            e.printStackTrace();
-        }
-    }
 }

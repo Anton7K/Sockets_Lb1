@@ -1,6 +1,8 @@
 package ua.nure.kaplun.sockets;
 
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
@@ -88,21 +90,57 @@ public class TCPServer extends Thread{
                                 this.clientName=receivedMessage.getSenderName();
                                 break;
                             case SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT :
-                            case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT :
-                                OutputStream otherOut = otherSiteClient.getOutputStream();
-                                otherOut.write(receivedMessage.getFullMessage());
-                                while(bytesToRead >= Configuration.CHUNKS_SIZE){
+                                OutputStream otherOutput = otherSiteClient.getOutputStream();
+                                otherOutput.write(receivedMessage.getFullMessage());
+                                while (bytesToRead >= Configuration.CHUNKS_SIZE) {
                                     byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
                                     in.read(receivedChunk);
-                                    otherOut.write(receivedChunk);
-                                    bytesToRead-=Configuration.CHUNKS_SIZE;
+                                    otherOutput.write(receivedChunk);
+                                    bytesToRead -= Configuration.CHUNKS_SIZE;
                                 }
-                                if(bytesToRead!=0){
+                                if (bytesToRead != 0) {
                                     byte[] finalChunk = new byte[bytesToRead];
                                     in.read(finalChunk);
-                                    otherOut.write(finalChunk);
+                                    otherOutput.write(finalChunk);
                                 }
-                                otherOut.flush();
+                                otherOutput.flush();
+                                break;
+                            case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT :
+                                String fileName =receivedMessage.getFileName();
+                                String fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+                                OutputStream otherOut = otherSiteClient.getOutputStream();
+                                if (fileExtension.equals(".bmp")) {
+                                    String dirName = "Server_files_" + clientName;
+                                    File receivedFile = FileSender.receiveBinaryFile(cin, bytesToRead, receivedMessage,
+                                            clientName, fileName, dirName);
+                                    BufferedImage image = ImageIO.read(receivedFile);
+                                    String convertedFileName = fileName.substring(0, fileName.lastIndexOf('.')) + ".jpg";
+                                    File convertedFile = new File(dirName + "\\" + convertedFileName);
+                                    ImageIO.write(image, "jpg", convertedFile);
+
+                                    FileSender.sendBinaryFileToOthersiteClient(convertedFile.getPath(),
+                                            new DataOutputStream(otherOut), this.clientName);
+
+                                    //delete server folder
+                                    receivedFile.delete();
+                                    convertedFile.delete();
+                                    File serverDir = new File(dirName);
+                                    serverDir.delete();
+                                } else {
+                                    otherOut.write(receivedMessage.getFullMessage());
+                                    while (bytesToRead >= Configuration.CHUNKS_SIZE) {
+                                        byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
+                                        in.read(receivedChunk);
+                                        otherOut.write(receivedChunk);
+                                        bytesToRead -= Configuration.CHUNKS_SIZE;
+                                    }
+                                    if (bytesToRead != 0) {
+                                        byte[] finalChunk = new byte[bytesToRead];
+                                        in.read(finalChunk);
+                                        otherOut.write(finalChunk);
+                                    }
+                                    otherOut.flush();
+                                }
 
 //                                System.out.println(new String(receivedMessage.getFullMessage()));
                                 break;

@@ -88,13 +88,45 @@ public class FileSender {
         }
     }
 
-    public static byte[] receiveBinaryFile(InputStream in){
-        byte[] fileContent = new byte[8192];
+//    public static byte[] receiveBinaryFile(InputStream in){
+//        byte[] fileContent = new byte[8192];
+//        try {
+//            in.read(fileContent);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        return fileContent;
+//    }
+
+    public static File receiveBinaryFile(InputStream in, int bytesToRead, Message firstChunkMessage, String printedSenderName, String fileName, String dirName){
+        File receivedFile=null;
         try {
-            in.read(fileContent);
-        } catch (IOException e) {
+            File dir = new File(dirName);
+            dir.mkdir();
+            receivedFile = new File(dir + "\\" + fileName);
+            FileOutputStream fileOut = new FileOutputStream(receivedFile);
+
+            fileOut.write(firstChunkMessage.getMessageContent());
+            while(bytesToRead >= Configuration.CHUNKS_SIZE){
+                byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
+                in.read(receivedChunk);
+                fileOut.write(receivedChunk);
+                bytesToRead-=Configuration.CHUNKS_SIZE;
+            }
+            if(bytesToRead!=0){
+                byte[] finalChunk = new byte[bytesToRead];
+                in.read(finalChunk);
+                fileOut.write(finalChunk);
+            }
+            fileOut.close();
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-        return fileContent;
+        catch (IOException e){
+            e.printStackTrace();
+        }
+        return receivedFile;
     }
+
+
 }

@@ -35,9 +35,14 @@ public class ReadTcpSocketThread extends Thread{
                         Message receivedMessage = new Message(receivedData);
                         String specialCommand = receivedMessage.getCommand();
                         String senderName = receivedMessage.getSenderName();
-                        String printedSenderName = PrintColors.ANSI_BLUE +
-                                senderName + ':' + PrintColors.ANSI_RESET + "\n\t";
-
+                        String printedSenderName;
+                        if(senderName.equals(Configuration.SERVER_NAME)){
+                            printedSenderName = PrintColors.ANSI_PURPLE +
+                                    "SERVER" + ':' + PrintColors.ANSI_RESET + "\n\t";
+                        }else {
+                            printedSenderName = PrintColors.ANSI_BLUE +
+                                    senderName + ':' + PrintColors.ANSI_RESET + "\n\t";
+                        }
 
                         switch (specialCommand){
                             case SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT :

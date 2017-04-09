@@ -6,7 +6,6 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class TCPServer extends Thread{
 
@@ -83,8 +82,11 @@ public class TCPServer extends Thread{
 
 
                         switch (specialCommand){
-                            case SpecialCommands.SET_OTHER_SITE_CLIENT:
+                            case SpecialCommands.SET_OTHER_SITE_CLIENT_BY_ADDRESS:
                                 checkOtherSiteClientAddress(new String(receivedMessage.getMessageContent()));
+                                break;
+                            case SpecialCommands.SET_OTHER_SITE_CLIENT_BY_NAME:
+                                pluginToOthersiteClientByName(new String(receivedMessage.getMessageContent()));
                                 break;
                             case SpecialCommands.SET_CLIENT_NAME:
                                 this.clientName=receivedMessage.getSenderName();
@@ -156,16 +158,16 @@ public class TCPServer extends Thread{
         }
     }
 
-    private void sendTextMessage(String message, String senderName) throws IOException {
-        DataOutputStream otherSiteClientOut = new DataOutputStream(otherSiteClient.getOutputStream());
-        if (this.clientSocket == null) {
-            otherSiteClientOut.writeUTF(PrintColors.ANSI_RED + "OtherSiteClient doesn't selected" + PrintColors.ANSI_RESET);
-        }
-        else {
-            otherSiteClientOut.writeUTF(PrintColors.ANSI_BLUE +
-                    senderName + ':' + PrintColors.ANSI_RESET + "\n\t" +  message);
-        }
-    }
+//    private void sendTextMessage(String message, String senderName) throws IOException {
+//        DataOutputStream otherSiteClientOut = new DataOutputStream(otherSiteClient.getOutputStream());
+//        if (this.clientSocket == null) {
+//            otherSiteClientOut.writeUTF(PrintColors.ANSI_RED + "OtherSiteClient doesn't selected" + PrintColors.ANSI_RESET);
+//        }
+//        else {
+//            otherSiteClientOut.writeUTF(PrintColors.ANSI_BLUE +
+//                    senderName + ':' + PrintColors.ANSI_RESET + "\n\t" +  message);
+//        }
+//    }
 
 //    private static void filterText(String text){
 //        String filterText="";
@@ -205,13 +207,48 @@ public class TCPServer extends Thread{
         }
     }
 
-    private void sendBinaryFile(byte[] fileContent){
+    private void pluginToOthersiteClientByName(String name){
+        Socket clientWithEnteredName = null;
+        for(TCPServer connection : allConnections){
+            if(connection.clientName.equals(name)){
+                clientWithEnteredName=connection.clientSocket;
+                if(connection.otherSiteClient==null){
+                    connection.otherSiteClient=this.clientSocket;
+                }
+                break;
+            }
+        }
         try {
-            OutputStream out = otherSiteClient.getOutputStream();
-            out.write(fileContent);
+            OutputStream senderOut = this.clientSocket.getOutputStream();
+            if(clientWithEnteredName != null){
+                this.otherSiteClient=clientWithEnteredName;
+                int clientPort = otherSiteClient.getPort();
+                InetAddress clientAddress = otherSiteClient.getInetAddress();
+                SocketAddress socketAddress = new InetSocketAddress(clientAddress, clientPort);
+                String successfulMessageContent = "You plugin to user " + name +
+                         " (" + socketAddress + ')';
+                Message successfulMessage = new Message(SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT,
+                        Configuration.SERVER_NAME, successfulMessageContent.getBytes());
+                senderOut.write(successfulMessage.getFullMessage());
+            }else{
+                String errorMessageContent = "Can't find user with entered name online!";
+                Message errorMessage = new Message(SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT,
+                        Configuration.SERVER_NAME, errorMessageContent.getBytes());
+                senderOut.write(errorMessage.getFullMessage());
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
+
+//    private void sendBinaryFile(byte[] fileContent){
+//        try {
+//            OutputStream out = otherSiteClient.getOutputStream();
+//            out.write(fileContent);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
 }

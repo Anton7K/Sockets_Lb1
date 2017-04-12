@@ -45,7 +45,12 @@ public class WriteTcpSocketThread extends Thread {
                     case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT:
                         System.out.println("Enter full path to file");
                         String filePath = keyboard.readLine();
-                        FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName());
+                        boolean isFileVideo = VideoFormats.videoFormatsList.contains(filePath.substring(filePath.lastIndexOf('.')));
+                        if(isFileVideo){
+                            FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new ConsolePercentagesWriter());
+                        }else {
+                            FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new NullPercentagesWriter());
+                        }
                         break;
                     default:
                         if(line.trim()!=""){

@@ -1,12 +1,13 @@
 package ua.nure.kaplun.sockets;
 
 import java.io.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by Anton on 11.03.2017.
  */
 public class FileSender {
-    public static void sendBinaryFileToOthersiteClient(String path, DataOutputStream out, String senderName){
+    public static void sendBinaryFileToOthersiteClient(String path, DataOutputStream out, String senderName, SendingPercentagesWriter writer){
         try{
             File sendingFile = new File(path);
             long fileLength = sendingFile.length();
@@ -29,9 +30,16 @@ public class FileSender {
                     byte[] firstFileChunk = new byte[Configuration.CHUNKS_SIZE - messageHeaderLength];
                     fileInput.read(firstFileChunk);
                     bytesToRead -= firstFileChunk.length;
+                    int postedPart=0;
+                    int currentPercentages=0;
+                    BufferedWriter consoleOut = new BufferedWriter(new OutputStreamWriter(new
+                            FileOutputStream(java.io.FileDescriptor.out), "ASCII"), 512);
+
+                    writer.writePercentages(currentPercentages, consoleOut);
                     Message message = new Message(SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT,
                             senderName, sendingFile.getName(), fullMessageLength, firstFileChunk);
                     out.write(message.getFullMessage());
+                    postedPart+=message.getMessageContent().length;
                     out.flush();
 
                     //send remaining chunks
@@ -41,40 +49,23 @@ public class FileSender {
                         fileInput.read(chunk);
                         bytesToRead -= Configuration.CHUNKS_SIZE;
                         out.write(chunk);
+                        postedPart+=chunk.length;
+
+                        if(currentPercentages < getPercentage(postedPart, (int)fileLength)){
+                            currentPercentages = getPercentage(postedPart, (int)fileLength);
+                            writer.writePercentages(currentPercentages, consoleOut);
+                        }
                     }
                     if(bytesToRead > 0){
                         chunk = new byte[bytesToRead];
                         fileInput.read(chunk);
                         out.write(chunk);
+                        postedPart+=chunk.length;
+                        writer.writePercentages(getPercentage(postedPart, (int)fileLength), consoleOut);
                     }
+                    System.out.println();
                 }
                 fileInput.close();
-//                byte[] specialCommandBytes = SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT.getBytes();
-//                byte[] senderNameBytes = senderName.getBytes();
-//                byte[] fileNameBytes = sendingFile.getName().getBytes();
-//                byte nameSeparator = (byte) '@';
-//
-//                int additionalInfoLength = specialCommandBytes.length + senderNameBytes.length +
-//                        fileNameBytes.length + 3;
-//                byte[] fileBytes = new byte[(int) fileLength + additionalInfoLength];
-//
-//                for(int i =0; i<specialCommandBytes.length; i++){
-//                    fileBytes[i]=specialCommandBytes[i];
-//                }
-//                fileBytes[4] = nameSeparator;
-//                int currentIndex=5;
-//                for(int i=0; currentIndex<senderNameBytes.length; currentIndex++, i++){
-//                    fileBytes[currentIndex] = senderNameBytes[i];
-//                }
-//                fileBytes[currentIndex] = nameSeparator;
-//                currentIndex++;
-//                for (int i=0; i<fileNameBytes.length; i++, currentIndex++){
-//                    fileBytes[currentIndex]=fileNameBytes[i];
-//                }
-//                fileBytes[currentIndex] = nameSeparator;
-//                currentIndex++;
-//                fileInput.read(fileBytes, currentIndex ,fileBytes.length-currentIndex);
-//                out.write(fileBytes);
             }
             else{
                 System.out.println(PrintColors.ANSI_RED + "This file is very big and can't be send!"
@@ -88,35 +79,48 @@ public class FileSender {
         }
     }
 
-//    public static byte[] receiveBinaryFile(InputStream in){
-//        byte[] fileContent = new byte[8192];
-//        try {
-//            in.read(fileContent);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        return fileContent;
-//    }
 
-    public static File receiveBinaryFile(InputStream in, int bytesToRead, Message firstChunkMessage, String printedSenderName, String fileName, String dirName){
+    public static File receiveBinaryFile(InputStream in, int bytesToRead, Message firstChunkMessage, String printedSenderName, String fileName, String dirName, SendingPercentagesWriter writer){
         File receivedFile=null;
         try {
             File dir = new File(dirName);
             dir.mkdir();
             receivedFile = new File(dir + "\\" + fileName);
             FileOutputStream fileOut = new FileOutputStream(receivedFile);
+            int receivedPart = firstChunkMessage.getMessageContent().length;
+            int currentPercentages=0;
+            int fullFileSize = firstChunkMessage.getMessageLength() -
+                    (Configuration.CHUNKS_SIZE - firstChunkMessage.getMessageContent().length);
+            System.out.println(printedSenderName + "Receiving file " +
+                    PrintColors.ANSI_CYAN + fileName + PrintColors.ANSI_RESET + "\n");
+            BufferedWriter consoleOut = new BufferedWriter(new OutputStreamWriter(new
+                    FileOutputStream(java.io.FileDescriptor.out), "ASCII"), 512);
 
+            writer.writePercentages(currentPercentages, consoleOut);
             fileOut.write(firstChunkMessage.getMessageContent());
+
+            currentPercentages = getPercentage(receivedPart, fullFileSize);
+            writer.writePercentages(currentPercentages, consoleOut);
             while(bytesToRead >= Configuration.CHUNKS_SIZE){
                 byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
                 in.read(receivedChunk);
                 fileOut.write(receivedChunk);
                 bytesToRead-=Configuration.CHUNKS_SIZE;
+
+                receivedPart += receivedChunk.length;
+                if(currentPercentages < getPercentage(receivedPart, fullFileSize)){
+                    currentPercentages = getPercentage(receivedPart, fullFileSize);
+                    writer.writePercentages(currentPercentages, consoleOut);
+                }
             }
             if(bytesToRead!=0){
                 byte[] finalChunk = new byte[bytesToRead];
                 in.read(finalChunk);
                 fileOut.write(finalChunk);
+
+                receivedPart += finalChunk.length;
+                writer.writePercentages(getPercentage(receivedPart, fullFileSize), consoleOut);
+                System.out.println();
             }
             fileOut.close();
         } catch (FileNotFoundException e) {
@@ -128,5 +132,13 @@ public class FileSender {
         return receivedFile;
     }
 
+    public static double getRoundedPercentage(double receivedPart, double fullFileLength){
+        double rawPercentage = receivedPart / fullFileLength * 100;
+        return Math.rint(rawPercentage * 10.0)/10.0;
+    }
 
+    public static int getPercentage(double receivedPart, double fullFileLength){
+        double receivingDoublePercentage = receivedPart/fullFileLength * 100;
+        return (int)receivingDoublePercentage;
+    }
 }

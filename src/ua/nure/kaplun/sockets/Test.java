@@ -8,11 +8,7 @@ import java.util.Arrays;
  */
 public class Test {
     public static void main(String[] args){
-        BigInteger integer = BigInteger.valueOf(10000);
-        byte[] bytes=integer.toByteArray();
-        System.out.println(Arrays.toString(bytes));
-        byte[] bytes1 = Message.intToByteArray(10000);
-        System.out.println(Arrays.toString(bytes1));
-        System.out.println(new BigInteger(bytes1).intValue());
+        double d = FileSender.getRoundedPercentage(157444608 ,757444608);
+        System.out.println(d);
     }
 }

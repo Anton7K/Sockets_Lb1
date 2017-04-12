@@ -114,14 +114,14 @@ public class TCPServer extends Thread{
                                 if (fileExtension.equals(".bmp")) {
                                     String dirName = "Server_files_" + clientName;
                                     File receivedFile = FileSender.receiveBinaryFile(cin, bytesToRead, receivedMessage,
-                                            clientName, fileName, dirName);
+                                            clientName, fileName, dirName, new NullPercentagesWriter());
                                     BufferedImage image = ImageIO.read(receivedFile);
                                     String convertedFileName = fileName.substring(0, fileName.lastIndexOf('.')) + ".jpg";
                                     File convertedFile = new File(dirName + "\\" + convertedFileName);
                                     ImageIO.write(image, "jpg", convertedFile);
 
                                     FileSender.sendBinaryFileToOthersiteClient(convertedFile.getPath(),
-                                            new DataOutputStream(otherOut), this.clientName);
+                                            new DataOutputStream(otherOut), this.clientName, new NullPercentagesWriter());
 
                                     //delete server folder
                                     receivedFile.delete();

@@ -95,6 +95,9 @@ public class Message {
     }
 
 
+    public int getMessageLength() {
+        return messageLength;
+    }
 
     public byte[] getFullMessage() {
         return fullMessage;
@@ -204,15 +207,21 @@ public class Message {
         return separatorIndexes;
     }
 
+
     private void defineKeyWords(byte[] fullMessage) throws MessageFormatException {
         ArrayList<Integer> separatorsIndexes = getSeparatorsIndexes(fullMessage);
         int separatorLength = separator.getBytes().length;
 
         if (separatorsIndexes.size() == MAX_KEYWORD_COUNT) {
+            byte[] lengthBytes = new byte[separatorsIndexes.get(0)];
             byte[] commandBytes = new byte[separatorsIndexes.get(1) - (separatorsIndexes.get(0) + separatorLength)];
             byte[] clientBytes = new byte[separatorsIndexes.get(2) - (separatorsIndexes.get(1) + separatorLength)];
             byte[] fileNameBytes = new byte[separatorsIndexes.get(3) - (separatorsIndexes.get(2) + separatorLength)];
 
+            if (lengthBytes.length > 0) {
+                System.arraycopy(fullMessage, 0, lengthBytes, 0, lengthBytes.length);
+                this.messageLength = new BigInteger(lengthBytes).intValue();
+            }
             if (commandBytes.length > 0) {
                 System.arraycopy(fullMessage, separatorsIndexes.get(0) + separatorLength, commandBytes, 0, commandBytes.length);
                 this.command = new String(commandBytes);

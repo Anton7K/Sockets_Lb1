@@ -49,7 +49,18 @@ public class ReadTcpSocketThread extends Thread{
                                 receiveTextMessage(in, bytesToRead, receivedMessage, printedSenderName);
                                 break;
                             case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT :
-                                FileSender.receiveBinaryFile(in, bytesToRead, receivedMessage, printedSenderName, receivedMessage.getFileName(), "ReceivedFiles_" + client.getClientName());
+                                String fileName = receivedMessage.getFileName();
+                                boolean isFileVideo = VideoFormats.videoFormatsList.contains(fileName.substring(fileName.lastIndexOf('.')));
+                                if(isFileVideo){
+                                    FileSender.receiveBinaryFile(in, bytesToRead, receivedMessage,
+                                            printedSenderName, fileName, "ReceivedFiles_" + client.getClientName(),
+                                            new ConsolePercentagesWriter());
+                                }else {
+                                    FileSender.receiveBinaryFile(in, bytesToRead, receivedMessage,
+                                            printedSenderName, fileName, "ReceivedFiles_" + client.getClientName(),
+                                            new NullPercentagesWriter());
+                                }
+
                                 break;
                             default:
                         }

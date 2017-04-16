@@ -1,6 +1,10 @@
 package ua.nure.kaplun.sockets;
 
 import java.io.*;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.Hashtable;
 
 /**
  * Created by Anton on 23.02.2017.
@@ -52,6 +56,18 @@ public class WriteTcpSocketThread extends Thread {
                             FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new NullPercentagesWriter());
                         }
                         break;
+                    case SpecialCommands.SEND_SERIALIZABLE_DATA:
+                        Hashtable<String, Date> birthDays = generateBirthdayDays();
+                        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                        ObjectOutputStream oos = new ObjectOutputStream(buffer);
+                        oos.writeObject(birthDays);
+                        oos.close();
+                        buffer.close();
+                        byte[] serializableData = buffer.toByteArray();
+
+                        Message serializableMessage = new Message(SpecialCommands.SEND_SERIALIZABLE_DATA, client.getClientName(), serializableData);
+                        out.write(serializableMessage.getFullMessage());
+                        break;
                     default:
                         if(line.trim()!=""){
                             Message textMessage = new Message(SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT,
@@ -63,6 +79,17 @@ public class WriteTcpSocketThread extends Thread {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+    }
+
+    private static Hashtable<String, Date> generateBirthdayDays(){
+        Hashtable <String, Date> birthdayDays= new Hashtable<>();
+        birthdayDays.put("Иванов", new GregorianCalendar(1996, 7, 2).getTime());
+        birthdayDays.put("Петров", new GregorianCalendar(1997, 5, 3).getTime());
+        birthdayDays.put("Сидоров", new GregorianCalendar(1995, 10, 27).getTime());
+        birthdayDays.put("Горбушин", new GregorianCalendar(1997, 8, 11).getTime());
+        birthdayDays.put("Грядин", new GregorianCalendar(1996, 1, 15).getTime());
+        birthdayDays.put("Зубов", new GregorianCalendar(1996, 2, 24).getTime());
+        return birthdayDays;
     }
 
 }

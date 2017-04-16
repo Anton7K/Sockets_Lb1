@@ -9,4 +9,5 @@ public final class SpecialCommands {
     public static final String SET_CLIENT_NAME = "scn";
     public static final String SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT = "stm";
     public static final String SEND_BINARY_FILE_TO_OTHERSITE_CLIENT = "sbo";
+    public static final String SEND_SERIALIZABLE_DATA = "ssd";
 }

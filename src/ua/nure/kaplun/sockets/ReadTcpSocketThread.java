@@ -1,5 +1,6 @@
 package ua.nure.kaplun.sockets;
 import java.io.*;
+import java.util.*;
 
 /**
  * Created by Anton on 23.02.2017.
@@ -60,7 +61,25 @@ public class ReadTcpSocketThread extends Thread{
                                             printedSenderName, fileName, "ReceivedFiles_" + client.getClientName(),
                                             new NullPercentagesWriter());
                                 }
-
+                                break;
+                            case SpecialCommands.SEND_SERIALIZABLE_DATA:
+                                System.out.print(printedSenderName);
+                                Hashtable<String, Date> receivedBirthdays = deserializeBirthdays(receivedMessage.getMessageContent());
+                                Hashtable<String, Date> copiedBirthdays = (Hashtable<String, Date>)receivedBirthdays.clone();
+                                Collection<Date> dates = receivedBirthdays.values();
+                                ArrayList<Date> sortedDates = new ArrayList<>(dates);
+                                Collections.sort(sortedDates);
+                                 for(int i=0; i<sortedDates.size(); i++) {
+                                    Date value = sortedDates.get(i);
+                                    for (Map.Entry<String, Date> entry : copiedBirthdays.entrySet()) {
+                                        if (entry.getValue() == value) {
+                                            String key = entry.getKey();
+                                            System.out.print("\n\t" + key + "=>" + value);
+                                            copiedBirthdays.remove(key);
+                                            break;
+                                        }
+                                    }
+                                }
                                 break;
                             default:
                         }
@@ -132,4 +151,15 @@ public class ReadTcpSocketThread extends Thread{
         }
     }
 
+    private Hashtable<String, Date> deserializeBirthdays(byte[] serializableData) throws IOException {
+        ByteArrayInputStream bin = new ByteArrayInputStream(serializableData);
+        ObjectInputStream oin = new ObjectInputStream(bin);
+        Hashtable<String, Date> birthdays = new Hashtable<>();
+        try {
+            birthdays = (Hashtable<String, Date>)oin.readObject();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return birthdays;
+    }
 }

@@ -92,6 +92,7 @@ public class TCPServer extends Thread{
                                 this.clientName=receivedMessage.getSenderName();
                                 break;
                             case SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT :
+                            case SpecialCommands.SEND_SERIALIZABLE_DATA:
                                 OutputStream otherOutput = otherSiteClient.getOutputStream();
                                 otherOutput.write(receivedMessage.getFullMessage());
                                 while (bytesToRead >= Configuration.CHUNKS_SIZE) {
@@ -143,8 +144,6 @@ public class TCPServer extends Thread{
                                     }
                                     otherOut.flush();
                                 }
-
-//                                System.out.println(new String(receivedMessage.getFullMessage()));
                                 break;
                             default:
 

@@ -7,7 +7,7 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 
-public class TCPServer extends Thread{
+public class TCPServer extends Thread {
 
     private Socket clientSocket;
     private String clientName = "Anonymous";
@@ -22,17 +22,15 @@ public class TCPServer extends Thread{
         try {
             allConnections = new ArrayList<>();
             ServerSocket serverSocket = new ServerSocket(Configuration.TCP_PORT, 0, InetAddress.getByName(Configuration.SERVER_NAME));
-            while (true){
+            while (true) {
                 new TCPServer(serverSocket.accept());
             }
-        }
-        catch (Exception ex){
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
-    public TCPServer(Socket clientSocket)
-    {
+    public TCPServer(Socket clientSocket) {
         this.clientSocket = clientSocket;
         allConnections.add(this);
         int clientPort = clientSocket.getPort();
@@ -42,8 +40,7 @@ public class TCPServer extends Thread{
         try {
             DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 //            out.writeUTF(PrintColors.ANSI_GREEN + "Successful connection" + PrintColors.ANSI_RESET);
-        }
-        catch (IOException ex){
+        } catch (IOException ex) {
             ex.printStackTrace();
         }
         setDaemon(true);
@@ -52,27 +49,27 @@ public class TCPServer extends Thread{
     }
 
     @Override
-    public void run(){
+    public void run() {
         try {
             InputStream cin = clientSocket.getInputStream();
             OutputStream cout = clientSocket.getOutputStream();
             DataInputStream in = new DataInputStream(cin);
 //            DataOutputStream out = new DataOutputStream(cout);
 //            String receivedText;
-            while (true){
-                if (cin.available()>0) {
+            while (true) {
+                if (cin.available() > 0) {
 
                     int messageLength = Message.getMessageLength(in);
-                    if (messageLength!=-1) {
+                    if (messageLength != -1) {
                         byte[] messageLengthBytes = Message.intToByteArray(messageLength);
                         int firstChunkLength = messageLength <= Configuration.CHUNKS_SIZE ? messageLength : Configuration.CHUNKS_SIZE;
 
                         byte[] receivedData = new byte[firstChunkLength];
-                        int curIndex=0;
-                        int bytesToRead=messageLength;
+                        int curIndex = 0;
+                        int bytesToRead = messageLength;
 
                         System.arraycopy(messageLengthBytes, 0, receivedData, curIndex, messageLengthBytes.length);
-                        curIndex+=messageLengthBytes.length;
+                        curIndex += messageLengthBytes.length;
 
                         in.readFully(receivedData, curIndex, receivedData.length - curIndex);
                         bytesToRead -= receivedData.length;
@@ -81,7 +78,7 @@ public class TCPServer extends Thread{
                         String specialCommand = receivedMessage.getCommand();
 
 
-                        switch (specialCommand){
+                        switch (specialCommand) {
                             case SpecialCommands.SET_OTHER_SITE_CLIENT_BY_ADDRESS:
                                 checkOtherSiteClientAddress(new String(receivedMessage.getMessageContent()));
                                 break;
@@ -89,9 +86,20 @@ public class TCPServer extends Thread{
                                 pluginToOthersiteClientByName(new String(receivedMessage.getMessageContent()));
                                 break;
                             case SpecialCommands.SET_CLIENT_NAME:
-                                this.clientName=receivedMessage.getSenderName();
+                                this.clientName = receivedMessage.getSenderName();
                                 break;
-                            case SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT :
+                            case SpecialCommands.SET_DELIVERY_LIST:
+                                String mesContent = new String(receivedMessage.getMessageContent());
+                                String[] clients = mesContent.split(",");
+                                for (String clientName : clients) {
+                                    for (TCPServer connection : allConnections) {
+                                        if(connection.clientName.equals(clientName)){
+                                            deliveryList.add(connection.clientSocket);
+                                        }
+                                    }
+                                }
+                                break;
+                            case SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT:
                             case SpecialCommands.SEND_SERIALIZABLE_DATA:
                                 OutputStream otherOutput = otherSiteClient.getOutputStream();
                                 otherOutput.write(receivedMessage.getFullMessage());
@@ -108,42 +116,20 @@ public class TCPServer extends Thread{
                                 }
                                 otherOutput.flush();
                                 break;
-                            case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT :
-                                String fileName =receivedMessage.getFileName();
+                            case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT:
+                                String fileName = receivedMessage.getFileName();
                                 String fileExtension = fileName.substring(fileName.lastIndexOf('.'));
-                                OutputStream otherOut = otherSiteClient.getOutputStream();
-                                if (fileExtension.equals(".bmp")) {
-                                    String dirName = "Server_files_" + clientName;
-                                    File receivedFile = FileSender.receiveBinaryFile(cin, bytesToRead, receivedMessage,
-                                            clientName, fileName, dirName, new NullPercentagesWriter());
-                                    BufferedImage image = ImageIO.read(receivedFile);
-                                    String convertedFileName = fileName.substring(0, fileName.lastIndexOf('.')) + ".jpg";
-                                    File convertedFile = new File(dirName + "\\" + convertedFileName);
-                                    ImageIO.write(image, "jpg", convertedFile);
+//                                OutputStream otherOut = otherSiteClient.getOutputStream();
+                                ArrayList<Socket> otherClient = new ArrayList<>();
+                                otherClient.add(otherSiteClient);
+                                sendBinaryFileFromServer(cin, bytesToRead, receivedMessage, fileName, fileExtension, otherClient);
+                                break;
+                            case SpecialCommands.SEND_BINARY_FILE_TO_SEVERAL_PEOPLE:
+                                String sendingFileName = receivedMessage.getFileName();
+                                String sendingExtension = sendingFileName.substring(sendingFileName.lastIndexOf('.'));
 
-                                    FileSender.sendBinaryFileToOthersiteClient(convertedFile.getPath(),
-                                            new DataOutputStream(otherOut), this.clientName, new NullPercentagesWriter());
+                                sendBinaryFileFromServer(cin, bytesToRead, receivedMessage, sendingFileName, sendingExtension, deliveryList);
 
-                                    //delete server folder
-                                    receivedFile.delete();
-                                    convertedFile.delete();
-                                    File serverDir = new File(dirName);
-                                    serverDir.delete();
-                                } else {
-                                    otherOut.write(receivedMessage.getFullMessage());
-                                    while (bytesToRead >= Configuration.CHUNKS_SIZE) {
-                                        byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
-                                        in.read(receivedChunk);
-                                        otherOut.write(receivedChunk);
-                                        bytesToRead -= Configuration.CHUNKS_SIZE;
-                                    }
-                                    if (bytesToRead != 0) {
-                                        byte[] finalChunk = new byte[bytesToRead];
-                                        in.read(finalChunk);
-                                        otherOut.write(finalChunk);
-                                    }
-                                    otherOut.flush();
-                                }
                                 break;
                             default:
 
@@ -151,9 +137,50 @@ public class TCPServer extends Thread{
                     }
                 }
             }
-        }
-        catch (IOException ex){
+        } catch (IOException ex) {
             ex.printStackTrace();
+        }
+    }
+
+    private void sendBinaryFileFromServer(InputStream in, int bytesToRead, Message receivedMessage, String fileName, String fileExtension, ArrayList<Socket> clients) throws IOException {
+        if (fileExtension.equals(".bmp")) {
+            String dirName = "Server_files_" + clientName;
+            File receivedFile = FileSender.receiveBinaryFile(in, bytesToRead, receivedMessage,
+                    clientName, fileName, dirName, new NullPercentagesWriter());
+            BufferedImage image = ImageIO.read(receivedFile);
+            String convertedFileName = fileName.substring(0, fileName.lastIndexOf('.')) + ".jpg";
+            File convertedFile = new File(dirName + "\\" + convertedFileName);
+            ImageIO.write(image, "jpg", convertedFile);
+            for(Socket client : clients) {
+                FileSender.sendBinaryFileToOthersiteClient(convertedFile.getPath(),
+                        new DataOutputStream(client.getOutputStream()), this.clientName, new NullPercentagesWriter(), SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT);
+            }
+            //delete server folder
+            receivedFile.delete();
+            convertedFile.delete();
+            File serverDir = new File(dirName);
+            serverDir.delete();
+        } else {
+            receivedMessage.setCommand(SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT);
+            for(Socket client : clients){
+                client.getOutputStream().write(receivedMessage.getFullMessage());
+            }
+            while (bytesToRead >= Configuration.CHUNKS_SIZE) {
+                byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
+                in.read(receivedChunk);
+                for(Socket client : clients) {
+                    client.getOutputStream().write(receivedChunk);
+                }
+                bytesToRead -= Configuration.CHUNKS_SIZE;
+            }
+            if (bytesToRead != 0) {
+                byte[] finalChunk = new byte[bytesToRead];
+                in.read(finalChunk);
+                for(Socket client : clients) {
+                    client.getOutputStream().write(finalChunk);
+                }
+            }
+//            otherOut.flush();
         }
     }
 
@@ -185,8 +212,8 @@ public class TCPServer extends Thread{
                 String connectionIP = otherSiteAddress.getHostAddress();
                 if (connectionIP.equals(otherSiteIP)) {
                     clientWithEnteredAddress = connection.clientSocket;
-                    if(connection.otherSiteClient==null){
-                        connection.otherSiteClient=this.clientSocket;
+                    if (connection.otherSiteClient == null) {
+                        connection.otherSiteClient = this.clientSocket;
                     }
                     break;
                 }
@@ -206,30 +233,30 @@ public class TCPServer extends Thread{
         }
     }
 
-    private void pluginToOthersiteClientByName(String name){
+    private void pluginToOthersiteClientByName(String name) {
         Socket clientWithEnteredName = null;
-        for(TCPServer connection : allConnections){
-            if(connection.clientName.equals(name)){
-                clientWithEnteredName=connection.clientSocket;
-                if(connection.otherSiteClient==null){
-                    connection.otherSiteClient=this.clientSocket;
+        for (TCPServer connection : allConnections) {
+            if (connection.clientName.equals(name)) {
+                clientWithEnteredName = connection.clientSocket;
+                if (connection.otherSiteClient == null) {
+                    connection.otherSiteClient = this.clientSocket;
                 }
                 break;
             }
         }
         try {
             OutputStream senderOut = this.clientSocket.getOutputStream();
-            if(clientWithEnteredName != null){
-                this.otherSiteClient=clientWithEnteredName;
+            if (clientWithEnteredName != null) {
+                this.otherSiteClient = clientWithEnteredName;
                 int clientPort = otherSiteClient.getPort();
                 InetAddress clientAddress = otherSiteClient.getInetAddress();
                 SocketAddress socketAddress = new InetSocketAddress(clientAddress, clientPort);
                 String successfulMessageContent = "You plugin to user " + name +
-                         " (" + socketAddress + ')';
+                        " (" + socketAddress + ')';
                 Message successfulMessage = new Message(SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT,
                         Configuration.SERVER_NAME, successfulMessageContent.getBytes());
                 senderOut.write(successfulMessage.getFullMessage());
-            }else{
+            } else {
                 String errorMessageContent = "Can't find user with entered name online!";
                 Message errorMessage = new Message(SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT,
                         Configuration.SERVER_NAME, errorMessageContent.getBytes());

@@ -30,6 +30,8 @@ public class WriteTcpSocketThread extends Thread {
             System.out.println(PrintColors.ANSI_YELLOW + "To change/choose other site companion by address enter " + SpecialCommands.SET_OTHER_SITE_CLIENT_BY_ADDRESS + "\n" +
                     "To change/choose other site companion by name enter " + SpecialCommands.SET_OTHER_SITE_CLIENT_BY_NAME + "\n" +
                     "To send binary file enter " + SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT + "\n" +
+                    "To create delivery list enter " + SpecialCommands.SET_DELIVERY_LIST + "\n" +
+                    "To send binary file to several people(from your delivery list) enter " + SpecialCommands.SEND_BINARY_FILE_TO_SEVERAL_PEOPLE+ "\n" +
                     "To send text message to your companion just enter your message" + PrintColors.ANSI_RESET);
             while (true) {
                 line = keyboard.readLine();
@@ -46,14 +48,21 @@ public class WriteTcpSocketThread extends Thread {
                         Message nameMessage=new Message(SpecialCommands.SET_OTHER_SITE_CLIENT_BY_NAME, client.getClientName(), name.getBytes());
                         out.write(nameMessage.getFullMessage());
                         break;
+                    case SpecialCommands.SET_DELIVERY_LIST:
+                        System.out.println("Enter recipient names(Vasya,Petya)");
+                        String names = keyboard.readLine();
+                        Message namesMessage=new Message(SpecialCommands.SET_DELIVERY_LIST, client.getClientName(), names.getBytes());
+                        out.write(namesMessage.getFullMessage());
+                        break;
                     case SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT:
+                    case SpecialCommands.SEND_BINARY_FILE_TO_SEVERAL_PEOPLE:
                         System.out.println("Enter full path to file");
                         String filePath = keyboard.readLine();
                         boolean isFileVideo = VideoFormats.videoFormatsList.contains(filePath.substring(filePath.lastIndexOf('.')));
                         if(isFileVideo){
-                            FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new ConsolePercentagesWriter());
+                            FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new ConsolePercentagesWriter(), line);
                         }else {
-                            FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new NullPercentagesWriter());
+                            FileSender.sendBinaryFileToOthersiteClient(filePath, dOut, client.getClientName(), new NullPercentagesWriter(), line);
                         }
                         break;
                     case SpecialCommands.SEND_SERIALIZABLE_DATA:
@@ -69,7 +78,7 @@ public class WriteTcpSocketThread extends Thread {
                         out.write(serializableMessage.getFullMessage());
                         break;
                     default:
-                        if(line.trim()!=""){
+                        if(!line.trim().equals("")){
                             Message textMessage = new Message(SpecialCommands.SEND_TEXT_MESSAGE_TO_OTHERSITE_CLIENT,
                                     client.getClientName(), line.getBytes());
                             out.write(textMessage.getFullMessage());

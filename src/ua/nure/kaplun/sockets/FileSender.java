@@ -7,20 +7,20 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Created by Anton on 11.03.2017.
  */
 public class FileSender {
-    public static void sendBinaryFileToOthersiteClient(String path, DataOutputStream out, String senderName, SendingPercentagesWriter writer){
+    public static void sendBinaryFileToOthersiteClient(String path, DataOutputStream out, String senderName, SendingPercentagesWriter writer, String sendingCommand){
         try{
             File sendingFile = new File(path);
             long fileLength = sendingFile.length();
             if(fileLength == (int)fileLength) {
                 FileInputStream fileInput = new FileInputStream(sendingFile);
                 int fullMessageLength = Message.getFullMessageLength((int)fileLength,
-                        SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT, senderName, sendingFile.getName());
+                        sendingCommand, senderName, sendingFile.getName());
                 int messageHeaderLength = Message.getHeaderLength((int)fileLength,
-                        SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT, senderName, sendingFile.getName());
+                        sendingCommand, senderName, sendingFile.getName());
                 if (fullMessageLength <= Configuration.CHUNKS_SIZE) {
                     byte[] fileContent = new byte[(int) fileLength];
                     fileInput.read(fileContent);
-                    Message message = new Message(SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT,
+                    Message message = new Message(sendingCommand,
                             senderName, sendingFile.getName(), 0 ,fileContent);
                     out.write(message.getFullMessage());
                 } else {
@@ -36,7 +36,7 @@ public class FileSender {
                             FileOutputStream(java.io.FileDescriptor.out), "ASCII"), 512);
 
                     writer.writePercentages(currentPercentages, consoleOut);
-                    Message message = new Message(SpecialCommands.SEND_BINARY_FILE_TO_OTHERSITE_CLIENT,
+                    Message message = new Message(sendingCommand,
                             senderName, sendingFile.getName(), fullMessageLength, firstFileChunk);
                     out.write(message.getFullMessage());
                     postedPart+=message.getMessageContent().length;

@@ -94,6 +94,18 @@ public class Message {
         return headerLength;
     }
 
+    public void setCommand(String command) {
+        this.command = command;
+        byte[] commandBytes = command.getBytes();
+        ArrayList<Integer> separatorsIndexes = getSeparatorsIndexes(fullMessage);
+        byte[] fullMessageCopy = new byte[fullMessage.length];
+        int replaseStart = separatorsIndexes.get(0)+1;
+        int replaseEnd = separatorsIndexes.get(1)-1;
+        System.arraycopy(fullMessage, 0, fullMessageCopy, 0, replaseStart);
+        System.arraycopy(commandBytes, 0, fullMessageCopy, replaseStart, commandBytes.length);
+        System.arraycopy(fullMessage, replaseEnd+1, fullMessageCopy, replaseEnd+1, fullMessage.length-(replaseEnd+1));
+        fullMessage=fullMessageCopy;
+    }
 
     public int getMessageLength() {
         return messageLength;

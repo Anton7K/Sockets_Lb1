@@ -11,4 +11,5 @@ public final class Configuration {
     public static final String SERVER_NAME = "localhost";
     public static final int UDP_PORT = 999;
     public static final int CHUNKS_SIZE = 512;
+    public static final int UDP_CHUNK_SIZE = 512;
 }

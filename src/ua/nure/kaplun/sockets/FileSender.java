@@ -1,7 +1,6 @@
 package ua.nure.kaplun.sockets;
 
 import java.io.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by Anton on 11.03.2017.
@@ -130,6 +129,61 @@ public class FileSender {
             e.printStackTrace();
         }
         return receivedFile;
+    }
+
+    public static File receiveBinaryFileAccelerately(InputStream in, int bytesToRead, Message firstChunkMessage, String printedSenderName, String fileName, String dirName, SendingPercentagesWriter writer){
+        File receivedFile=null;
+        try {
+            File dir = new File(dirName);
+            dir.mkdir();
+            receivedFile = new File(dir + "\\" + fileName);
+            FileOutputStream fileOut = new FileOutputStream(receivedFile);
+            int currentPercentages=0;
+            int fullFileSize = firstChunkMessage.getMessageLength() -
+                    (Configuration.CHUNKS_SIZE - firstChunkMessage.getMessageContent().length);
+            System.out.println(printedSenderName + "Receiving file " +
+                    PrintColors.ANSI_CYAN + fileName + PrintColors.ANSI_RESET + "\n");
+            BufferedWriter consoleOut = new BufferedWriter(new OutputStreamWriter(new
+                    FileOutputStream(java.io.FileDescriptor.out), "ASCII"), 512);
+
+            writer.writePercentages(currentPercentages, consoleOut);
+            fileOut.write(firstChunkMessage.getMessageContent());
+
+            writer.writePercentages(currentPercentages, consoleOut);
+            while(getAcceleratedBytesCount(bytesToRead, 10)>= Configuration.CHUNKS_SIZE){
+                byte[] receivedChunk = new byte[Configuration.CHUNKS_SIZE];
+                for(int i=0; i<receivedChunk.length; i++){
+                    receivedChunk[i]=(byte)in.read();
+                    in.skip(9);
+                }
+                fileOut.write(receivedChunk);
+                bytesToRead-=Configuration.CHUNKS_SIZE;
+            }
+            if(getAcceleratedBytesCount(bytesToRead, 10)!=0){
+                byte[] finalChunk = new byte[getAcceleratedBytesCount(bytesToRead, 10)];
+                for(int i=0; i<finalChunk.length; i++){
+                    finalChunk[i]=(byte)in.read();
+                    in.skip(9);
+                }
+                fileOut.write(finalChunk);
+                System.out.println();
+            }
+            fileOut.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        catch (IOException e){
+            e.printStackTrace();
+        }
+        return receivedFile;
+    }
+
+    private static int getAcceleratedBytesCount(int a, int b) {
+        if(a%b!=0){
+            return a/b + 1;
+        }else {
+            return a/b;
+        }
     }
 
     public static double getRoundedPercentage(double receivedPart, double fullFileLength){

@@ -9,6 +9,6 @@ import java.util.Arrays;
 public class Test {
     public static void main(String[] args){
         double d = FileSender.getRoundedPercentage(157444608 ,757444608);
-        System.out.println(d);
+        System.out.println(7/3);
     }
 }
